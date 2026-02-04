@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard - Fake Store Products</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" 
+        rel="stylesheet" 
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" 
+        crossorigin="anonymous">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+      <h1 class="h2 mb-0">Product Dashboard</h1>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm theo tiêu đề..." style="width: 280px;">
+        <div class="d-flex align-items-center gap-2">
+          <label for="pageSize" class="form-label mb-0">Hiển thị:</label>
+          <select id="pageSize" class="form-select" style="width: auto;">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+        <button id="refreshBtn" class="btn btn-primary">Refresh Data</button>
+        <button id="exportBtn" class="btn btn-success">Export CSV (Current View)</button>
+        <button id="createBtn" class="btn btn-success">Tạo mới</button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="text-center my-5 d-none">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-3">Đang tải dữ liệu...</p>
+    </div>
+
+    <!-- Error -->
+    <div id="error" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered align-middle" id="productsTable">
+        <thead class="table-dark">
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col" id="sortTitle" class="sortable" data-sort="title" data-direction="none">
+              Title <span class="sort-icon"></span>
+            </th>
+            <th scope="col" id="sortPrice" class="sortable" data-sort="price" data-direction="none">
+              Price <span class="sort-icon"></span>
+            </th>
+            <th scope="col">Category</th>
+            <th scope="col">Images</th>
+          </tr>
+        </thead>
+        <tbody id="productsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Phân trang -->
+    <div id="pagination" class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
+      <div id="pageInfo" class="text-muted">Trang 1 / 1</div>
+      <nav aria-label="Page navigation">
+        <ul class="pagination mb-0" id="paginationControls"></ul>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Modal Chi tiết & Edit sản phẩm -->
+  <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="productModalLabel">Product Detail</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modalBody">
+          <!-- Nội dung render động bằng JS -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="editBtn">Edit</button>
+          <button type="button" class="btn btn-success d-none" id="saveBtn">Save Changes</button>
+          <button type="button" class="btn btn-secondary d-none" id="cancelBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tạo sản phẩm mới -->
+  <div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createModalLabel">Tạo sản phẩm mới</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createProductForm">
+            <div class="mb-3">
+              <label for="createTitle" class="form-label">Tiêu đề (Title) <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="createTitle" required>
+            </div>
+            <div class="mb-3">
+              <label for="createPrice" class="form-label">Giá (Price) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="createPrice" min="0" step="0.01" required>
+            </div>
+            <div class="mb-3">
+              <label for="createDescription" class="form-label">Mô tả (Description)</label>
+              <textarea class="form-control" id="createDescription" rows="4"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="createImages" class="form-label">Link ảnh (Images - cách nhau bởi dấu phẩy)</label>
+              <input type="text" class="form-control" id="createImages" placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg">
+              <small class="form-text text-muted">Có thể nhập nhiều link ảnh, cách nhau bởi dấu phẩy</small>
+            </div>
+            <div class="mb-3">
+              <label for="createCategoryId" class="form-label">Category ID <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="createCategoryId" value="1" min="1" required>
+              <small class="form-text text-muted">Category ID hợp lệ (thường từ 1-5 trong API fake này)</small>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="button" class="btn btn-primary" id="saveCreateBtn">Tạo sản phẩm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" 
+          integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" 
+          crossorigin="anonymous"></script>
+
+  <!-- Main JS -->
+  <script src="main.js"></script>
+</body>
+</html>
